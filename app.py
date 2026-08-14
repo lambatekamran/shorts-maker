@@ -62,6 +62,7 @@ def download_youtube(url: str, dest: Path) -> Path:
         "--merge-output-format", "mp4",
         "-o", out_template,
     ]
+    base_cmd_no_cookies = list(base_cmd)
     if os.path.exists(COOKIES_PATH):
         base_cmd += ["--cookies", COOKIES_PATH]
         print("DEBUG: using cookies file for this download", flush=True)
@@ -69,11 +70,12 @@ def download_youtube(url: str, dest: Path) -> Path:
         print("DEBUG: no cookies file found at download time, proceeding without", flush=True)
 
     # Try a couple of player clients in order - YouTube's bot detection treats
-    # them differently, and this shifts over time, so we fall back through a
-    # short list rather than betting on just one.
+    # them differently, and this shifts over time. Android/iOS clients reject
+    # cookies outright (yt-dlp skips them if cookies are attached), so those
+    # attempts run without cookies; only the web client fallback uses cookies.
     attempts = [
-        base_cmd + ["--extractor-args", "youtube:player_client=android", url],
-        base_cmd + ["--extractor-args", "youtube:player_client=ios", url],
+        base_cmd_no_cookies + ["--extractor-args", "youtube:player_client=android", url],
+        base_cmd_no_cookies + ["--extractor-args", "youtube:player_client=ios", url],
         base_cmd + [url],
     ]
 
