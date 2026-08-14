@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Shorts Maker — Preview</title>
+<style>
+  :root {
+    --bg: #0A0B0D;
+    --panel: #131417;
+    --panel-2: #1B1D22;
+    --line: #24262C;
+    --text: #ECEDF0;
+    --muted: #767B87;
+    --peak: #FFB020;
+    --peak-dim: #6B4E14;
+    --idle: #3ED9A6;
+    --mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 28px 18px 60px;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+
+  /* ---------- Header ---------- */
+  header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 22px; flex-wrap: wrap; gap: 8px; }
+  .wordmark {
+    font-family: var(--mono);
+    font-size: 1.05rem;
+    letter-spacing: 0.02em;
+    color: var(--text);
+  }
+  .wordmark span { color: var(--muted); }
+  .badge {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--peak);
+    border: 1px solid var(--peak-dim);
+    background: rgba(255,176,32,0.07);
+    padding: 3px 8px;
+    border-radius: 100px;
+    letter-spacing: 0.03em;
+  }
+
+  /* ---------- Waveform hero (signature element) ---------- */
+  .waveform-panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px 18px 14px;
+    margin-bottom: 18px;
+  }
+  .wf-label {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  .wf-label b { color: var(--text); font-weight: 500; }
+  .wf-track {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 84px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .wf-bar {
+    flex: 1;
+    background: var(--line);
+    border-radius: 2px 2px 0 0;
+    min-height: 3px;
+    transition: background 0.15s ease, box-shadow 0.15s ease;
+  }
+  .wf-bar.idle-tone { background: #2A3B36; }
+  .wf-bar.auto-peak { background: var(--idle); }
+  .wf-bar.chosen { background: var(--peak); box-shadow: 0 0 10px rgba(255,176,32,0.45); }
+  .wf-bar:hover { background: #3A3D45; }
+  .wf-ruler {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+  .wf-hint { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+  .wf-hint b { color: var(--idle); }
+  .wf-hint em { color: var(--peak); font-style: normal; }
+
+  /* ---------- Controls panel ---------- */
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin-bottom: 18px; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 18px; background: var(--panel-2); padding: 4px; border-radius: 10px; }
+  .tab-btn {
+    flex: 1; padding: 9px 10px; border-radius: 8px; border: none;
+    background: transparent; color: var(--muted); cursor: pointer;
+    font-size: 0.85rem; font-family: var(--sans); font-weight: 500;
+  }
+  .tab-btn.active { background: var(--panel); color: var(--text); }
+  .field { margin-bottom: 16px; }
+  label { display: block; font-size: 0.78rem; color: var(--muted); margin-bottom: 6px; font-family: var(--mono); letter-spacing: 0.01em; }
+  input[type="text"], input[type="file"] {
+    width: 100%; padding: 11px 12px; border-radius: 9px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--text); font-size: 0.9rem; font-family: var(--sans);
+  }
+  input[type="text"]:focus, .tab-btn:focus-visible, .submit:focus-visible, .wf-bar:focus-visible {
+    outline: 2px solid var(--idle); outline-offset: 2px;
+  }
+  .row { display: flex; gap: 22px; }
+  .row .field { flex: 1; }
+  .slider-row { display: flex; align-items: center; gap: 12px; }
+  input[type="range"] { flex: 1; accent-color: var(--peak); }
+  .slider-val { font-family: var(--mono); font-size: 0.85rem; color: var(--text); min-width: 46px; text-align: right; }
+  .stepper { display: flex; align-items: center; gap: 10px; }
+  .stepper button {
+    width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--panel-2); color: var(--text); font-size: 1rem; cursor: pointer;
+  }
+  .stepper button:hover { background: var(--line); }
+  .stepper span { font-family: var(--mono); font-size: 0.95rem; min-width: 18px; text-align: center; }
+
+  .submit {
+    width: 100%; padding: 13px; border: none; border-radius: 10px;
+    background: var(--peak); color: #1A1200; font-weight: 600; font-size: 0.92rem;
+    cursor: pointer; font-family: var(--sans); margin-top: 4px;
+  }
+  .submit:hover { filter: brightness(1.08); }
+  .submit:disabled { opacity: 0.55; cursor: not-allowed; filter: none; }
+
+  .progress-wrap { margin-top: 14px; display: none; }
+  .progress-wrap.show { display: block; }
+  .progress-label { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .progress-bar { height: 6px; background: var(--panel-2); border-radius: 100px; overflow: hidden; }
+  .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--idle), var(--peak)); transition: width 0.25s ease; }
+
+  /* ---------- Results ---------- */
+  .results-label { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); margin: 0 0 12px 2px; display: none; }
+  .results-label.show { display: block; }
+  .clips { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+  footer {
+    margin-top: 36px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-align: center;
+  }
+  .clip-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; opacity: 0; transform: translateY(6px); animation: rise 0.4s ease forwards; }
+  @keyframes rise { to { opacity: 1; transform: translateY(0); } }
+  .clip-thumb {
+    aspect-ratio: 9/16; display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+  }
+  .clip-thumb .tc {
+    position: absolute; bottom: 8px; left: 8px; font-family: var(--mono);
+    font-size: 0.68rem; background: rgba(0,0,0,0.55); padding: 2px 6px; border-radius: 4px; color: var(--text);
+  }
+  .clip-meta { padding: 9px 10px; font-family: var(--mono); font-size: 0.72rem; color: var(--muted); display: flex; justify-content: space-between; }
+  .clip-meta b { color: var(--text); font-weight: 500; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .progress-fill, .clip-card { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="wordmark">shorts<span>://</span>maker</div>
+    <div class="badge">● preview — no video is rendered here</div>
+  </header>
+
+  <div class="waveform-panel">
+    <div class="wf-label"><span>audio energy — <b>demo_upload.mp4</b> · 10:00</span><span id="wfCount">0 selected</span></div>
+    <div class="wf-track" id="wfTrack" role="group" aria-label="Click a bar to choose that moment as a short"></div>
+    <div class="wf-ruler"><span>0:00</span><span>2:30</span><span>5:00</span><span>7:30</span><span>10:00</span></div>
+    <div class="wf-hint"><b>■</b> auto-picked (loudest) &nbsp; <em>■</em> your picks &nbsp; — click any bar to swap a highlight in or out</div>
+  </div>
+
+  <div class="panel">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="youtube">YouTube link</button>
+      <button class="tab-btn" data-tab="upload">Upload file</button>
+    </div>
+
+    <div id="tab-youtube" class="field">
+      <label for="ytUrl">YouTube URL</label>
+      <input type="text" id="ytUrl" placeholder="https://www.youtube.com/watch?v=..." />
+    </div>
+    <div id="tab-upload" class="field" style="display:none">
+      <label for="fileInput">Video file</label>
+      <input type="file" id="fileInput" accept="video/*" />
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label>Clip length</label>
+        <div class="slider-row">
+          <input type="range" id="clipLen" min="10" max="60" value="30" />
+          <span class="slider-val" id="clipLenVal">30s</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Number of shorts</label>
+        <div class="stepper">
+          <button id="decClips" type="button" aria-label="Fewer shorts">−</button>
+          <span id="numClipsVal">3</span>
+          <button id="incClips" type="button" aria-label="More shorts">+</button>
+        </div>
+      </div>
+    </div>
+
+    <button class="submit" id="genBtn">Generate shorts</button>
+
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-label"><span id="progressText">Analyzing audio…</span><span id="progressPct">0%</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+  </div>
+
+  <div class="results-label" id="resultsLabel"></div>
+  <div class="clips" id="clips"></div>
+
+  <footer>© 2026 Kamran Lambate. All rights reserved.</footer>
+
+</div>
+
+<script>
+// ---------- Waveform data (deterministic, mirrors the real RMS-energy heuristic) ----------
+const N = 90;
+const PEAKS = [ {i:14, e:0.65}, {i:33, e:0.5}, {i:52, e:0.9}, {i:68, e:0.58}, {i:82, e:0.78} ];
+const TOTAL_SECONDS = 600;
+
+function waveHeight(i) {
+  let base = 0.14 + 0.07*Math.sin(i/5) + 0.05*Math.sin(i/2.1 + 1.3);
+  let burst = 0;
+  PEAKS.forEach(p => {
+    const d = Math.abs(i - p.i);
+    if (d < 5) burst += (1 - d/5) * p.e;
+  });
+  const pseudo = Math.abs(Math.sin(i * 12.9898) * 43758.5453) % 1;
+  const noise = pseudo * 0.10;
+  return Math.min(1, Math.max(0.06, base + burst + noise));
+}
+
+const heights = Array.from({length: N}, (_, i) => waveHeight(i));
+const peakIndices = new Set(PEAKS.map(p => p.i));
+
+let numClips = 3;
+let clipLen = 30;
+let manualPicks = new Set();   // user-toggled bar indices
+let activeTab = 'youtube';
+
+function autoPicks(n) {
+  return [...PEAKS].sort((a,b) => b.e - a.e).slice(0, n).map(p => p.i);
+}
+
+function effectivePicks() {
+  // manual picks take priority; fill remaining slots with strongest auto peaks not already picked
+  const picks = [...manualPicks];
+  if (picks.length < numClips) {
+    for (const idx of autoPicks(PEAKS.length)) {
+      if (picks.length >= numClips) break;
+      if (!picks.includes(idx)) picks.push(idx);
+    }
+  }
+  return picks.slice(0, numClips).sort((a,b) => a-b);
+}
+
+// ---------- Render waveform ----------
+const wfTrack = document.getElementById('wfTrack');
+const wfCount = document.getElementById('wfCount');
+
+function renderWaveform() {
+  wfTrack.innerHTML = '';
+  const picks = new Set(effectivePicks());
+  heights.forEach((h, i) => {
+    const bar = document.createElement('div');
+    bar.className = 'wf-bar';
+    bar.style.height = (h * 100) + '%';
+    bar.tabIndex = 0;
+    bar.setAttribute('role', 'button');
+    const time = Math.round((i / N) * TOTAL_SECONDS);
+    bar.setAttribute('aria-label', `${Math.floor(time/60)}:${String(time%60).padStart(2,'0')}`);
+    if (picks.has(i)) bar.classList.add('chosen');
+    else if (peakIndices.has(i)) bar.classList.add('auto-peak');
+    else bar.classList.add('idle-tone');
+    bar.addEventListener('click', () => toggleManual(i));
+    bar.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleManual(i); } });
+    wfTrack.appendChild(bar);
+  });
+  wfCount.textContent = `${effectivePicks().length} of ${numClips} selected`;
+}
+
+function toggleManual(i) {
+  if (manualPicks.has(i)) {
+    manualPicks.delete(i);
+  } else {
+    manualPicks.add(i);
+  }
+  renderWaveform();
+}
+
+renderWaveform();
+
+// ---------- Tabs ----------
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeTab = btn.dataset.tab;
+    document.getElementById('tab-youtube').style.display = activeTab === 'youtube' ? 'block' : 'none';
+    document.getElementById('tab-upload').style.display = activeTab === 'upload' ? 'block' : 'none';
+  });
+});
+
+// ---------- Clip length slider ----------
+const clipLenInput = document.getElementById('clipLen');
+const clipLenVal = document.getElementById('clipLenVal');
+clipLenInput.addEventListener('input', () => {
+  clipLen = parseInt(clipLenInput.value, 10);
+  clipLenVal.textContent = clipLen + 's';
+});
+
+// ---------- Num clips stepper ----------
+const numClipsVal = document.getElementById('numClipsVal');
+document.getElementById('decClips').addEventListener('click', () => {
+  numClips = Math.max(1, numClips - 1);
+  numClipsVal.textContent = numClips;
+  renderWaveform();
+});
+document.getElementById('incClips').addEventListener('click', () => {
+  numClips = Math.min(5, numClips + 1);
+  numClipsVal.textContent = numClips;
+  renderWaveform();
+});
+
+// ---------- Generate (simulated) ----------
+const genBtn = document.getElementById('genBtn');
+const progressWrap = document.getElementById('progressWrap');
+const progressFill = document.getElementById('progressFill');
+const progressPct = document.getElementById('progressPct');
+const progressText = document.getElementById('progressText');
+const resultsLabel = document.getElementById('resultsLabel');
+const clipsEl = document.getElementById('clips');
+
+const STAGES = [
+  [0, 'Fetching video…'],
+  [30, 'Analyzing audio energy…'],
+  [65, 'Rendering vertical clips…'],
+  [95, 'Finishing up…'],
+];
+
+const THUMB_COLORS = ['#3ED9A6', '#FFB020', '#6E9BFF', '#FF6B6B', '#C77DFF'];
+
+genBtn.addEventListener('click', () => {
+  clipsEl.innerHTML = '';
+  resultsLabel.classList.remove('show');
+  progressWrap.classList.add('show');
+  genBtn.disabled = true;
+  let pct = 0;
+  progressFill.style.width = '0%';
+  progressPct.textContent = '0%';
+
+  const timer = setInterval(() => {
+    pct += 4;
+    const stage = [...STAGES].reverse().find(s => pct >= s[0]);
+    progressText.textContent = stage ? stage[1] : 'Working…';
+    progressFill.style.width = Math.min(pct, 100) + '%';
+    progressPct.textContent = Math.min(pct, 100) + '%';
+    if (pct >= 100) {
+      clearInterval(timer);
+      setTimeout(finish, 300);
+    }
+  }, 90);
+});
+
+function finish() {
+  progressWrap.classList.remove('show');
+  genBtn.disabled = false;
+  const picks = effectivePicks();
+  resultsLabel.textContent = `${picks.length} short${picks.length === 1 ? '' : 's'} generated — from the highlighted moments above`;
+  resultsLabel.classList.add('show');
+  picks.forEach((idx, n) => {
+    const startSec = Math.round((idx / N) * TOTAL_SECONDS);
+    const mm = Math.floor(startSec / 60), ss = String(startSec % 60).padStart(2, '0');
+    const card = document.createElement('div');
+    card.className = 'clip-card';
+    card.style.animationDelay = (n * 70) + 'ms';
+    const color = THUMB_COLORS[n % THUMB_COLORS.length];
+    card.innerHTML = `
+      <div class="clip-thumb" style="background:linear-gradient(160deg, ${color}33, #0A0B0D 75%)">
+        <span class="tc">${mm}:${ss}</span>
+      </div>
+      <div class="clip-meta"><b>short_${n+1}</b><span>${clipLen}s</span></div>
+    `;
+    clipsEl.appendChild(card);
+  });
+}
+</script>
+</body>
+</html>
