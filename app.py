@@ -56,19 +56,39 @@ def index():
 
 def download_youtube(url: str, dest: Path) -> Path:
     out_template = str(dest / "%(id)s.%(ext)s")
-    cmd = [
+    base_cmd = [
         "yt-dlp",
         "-f", "mp4/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best",
         "--merge-output-format", "mp4",
         "-o", out_template,
-        url,
     ]
     if os.path.exists(COOKIES_PATH):
-        cmd += ["--cookies", COOKIES_PATH]
+        base_cmd += ["--cookies", COOKIES_PATH]
         print("DEBUG: using cookies file for this download", flush=True)
     else:
         print("DEBUG: no cookies file found at download time, proceeding without", flush=True)
-    subprocess.run(cmd, check=True, capture_output=True, text=True)
+
+    # Try a couple of player clients in order - YouTube's bot detection treats
+    # them differently, and this shifts over time, so we fall back through a
+    # short list rather than betting on just one.
+    attempts = [
+        base_cmd + ["--extractor-args", "youtube:player_client=android", url],
+        base_cmd + ["--extractor-args", "youtube:player_client=ios", url],
+        base_cmd + [url],
+    ]
+
+    last_error = None
+    for cmd in attempts:
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode == 0:
+            break
+        last_error = result
+        print(f"DEBUG: download attempt failed with client args {cmd[cmd.index('--extractor-args') + 1] if '--extractor-args' in cmd else 'default'}: {result.stderr[-300:]}", flush=True)
+    else:
+        raise subprocess.CalledProcessError(
+            last_error.returncode, cmd, output=last_error.stdout, stderr=last_error.stderr
+        )
+
     files = list(dest.glob("*.mp4"))
     if not files:
         raise RuntimeError("Download failed - no mp4 was produced")
