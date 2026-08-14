@@ -28,9 +28,21 @@ app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 COOKIES_PATH = "/tmp/cookies.txt"
 
 cookies_b64 = os.environ.get("YT_COOKIES_B64")
+print(f"DEBUG: YT_COOKIES_B64 env var present: {bool(cookies_b64)}, length: {len(cookies_b64) if cookies_b64 else 0}", flush=True)
+
 if cookies_b64:
-    with open(COOKIES_PATH, "wb") as f:
-        f.write(base64.b64decode(cookies_b64))
+    try:
+        decoded = base64.b64decode(cookies_b64, validate=True)
+        text = decoded.decode("utf-8")
+        if "# Netscape HTTP Cookie File" not in text and "\tTRUE\t" not in text:
+            raise ValueError("decoded content doesn't look like a cookies.txt file")
+        with open(COOKIES_PATH, "wb") as f:
+            f.write(decoded)
+        print(f"DEBUG: cookies.txt written successfully, {len(decoded)} bytes, {text.count(chr(10))} lines", flush=True)
+    except Exception as e:
+        print(f"WARNING: YT_COOKIES_B64 is set but invalid, ignoring it: {e}", flush=True)
+else:
+    print("DEBUG: no YT_COOKIES_B64 env var set at all", flush=True)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -53,6 +65,9 @@ def download_youtube(url: str, dest: Path) -> Path:
     ]
     if os.path.exists(COOKIES_PATH):
         cmd += ["--cookies", COOKIES_PATH]
+        print("DEBUG: using cookies file for this download", flush=True)
+    else:
+        print("DEBUG: no cookies file found at download time, proceeding without", flush=True)
     subprocess.run(cmd, check=True, capture_output=True, text=True)
     files = list(dest.glob("*.mp4"))
     if not files:
