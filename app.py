@@ -1,4 +1,6 @@
+import base64
 import json
+import os
 import shutil
 import subprocess
 import uuid
@@ -20,6 +22,16 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 app.mount("/outputs", StaticFiles(directory=OUTPUT_DIR), name="outputs")
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
+# ---------------------------------------------------------------------------
+# YouTube cookies (fixes "Sign in to confirm you're not a bot" on servers)
+# ---------------------------------------------------------------------------
+COOKIES_PATH = "/tmp/cookies.txt"
+
+cookies_b64 = os.environ.get("YT_COOKIES_B64")
+if cookies_b64:
+    with open(COOKIES_PATH, "wb") as f:
+        f.write(base64.b64decode(cookies_b64))
+
 
 @app.get("/", response_class=HTMLResponse)
 def index():
@@ -39,6 +51,8 @@ def download_youtube(url: str, dest: Path) -> Path:
         "-o", out_template,
         url,
     ]
+    if os.path.exists(COOKIES_PATH):
+        cmd += ["--cookies", COOKIES_PATH]
     subprocess.run(cmd, check=True, capture_output=True, text=True)
     files = list(dest.glob("*.mp4"))
     if not files:
